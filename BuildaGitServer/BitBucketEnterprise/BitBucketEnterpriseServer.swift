@@ -1,5 +1,5 @@
 //
-//  BitBucketServer.swift
+//  BitBucketEnterpriseServer.swift
 //  Buildasaur
 //
 //  Created by Honza Dvorsky on 1/27/16.
@@ -11,15 +11,15 @@ import BuildaUtils
 import ReactiveCocoa
 import Result
 
-class BitBucketServer : GitServer<BitBucketService> {
+class BitBucketEnterpriseServer : GitServer<BitBucketEnterpriseService> {
     
-    let endpoints: BitBucketEndpoints
+    let endpoints: BitBucketEnterpriseEndpoints
     let cache = InMemoryURLCache()
     
-    init(endpoints: BitBucketEndpoints, http: HTTP? = nil) {
+    init(endpoints: BitBucketEnterpriseEndpoints, service: BitBucketEnterpriseService, http: HTTP? = nil) {
         
         self.endpoints = endpoints
-        super.init(service: BitBucketService(), http: http)
+        super.init(service: service, http: http)
     }
     
     override func authChangedSignal() -> Signal<ProjectAuthenticator?, NoError> {
@@ -29,14 +29,14 @@ class BitBucketServer : GitServer<BitBucketService> {
     }
 }
 
-extension BitBucketServer: SourceServerType {
+extension BitBucketEnterpriseServer: SourceServerType {
     
     func createStatusFromState(state: BuildState, description: String?, targetUrl: String?) -> StatusType {
         
-        let bbState = BitBucketStatus.BitBucketState.fromBuildState(state)
+        let bbState = BitBucketEnterpriseStatus.BitBucketEnterpriseState.fromBuildState(state)
         let key = "Buildasaur"
         let url = targetUrl ?? "https://github.com/czechboy0/Buildasaur"
-        return BitBucketStatus(state: bbState, key: key, name: key, description: description, url: url)
+        return BitBucketEnterpriseStatus(state: bbState, key: key, name: key, description: description, url: url)
     }
     
     func getBranchesOfRepo(repo: String, completion: (branches: [BranchType]?, error: ErrorType?) -> ()) {
@@ -58,7 +58,7 @@ extension BitBucketServer: SourceServerType {
             }
             
             if let body = body as? [NSDictionary] {
-                let prs: [BitBucketPullRequest] = BitBucketArray(body)
+                let prs: [BitBucketEnterprisePullRequest] = BitBucketEnterpriseArray(body)
                 completion(prs: prs.map { $0 as PullRequestType }, error: nil)
             } else {
                 completion(prs: nil, error: Error.withInfo("Wrong body \(body)"))
@@ -81,7 +81,7 @@ extension BitBucketServer: SourceServerType {
             }
             
             if let body = body as? NSDictionary {
-                let pr = BitBucketPullRequest(json: body)
+                let pr = BitBucketEnterprisePullRequest(json: body)
                 completion(pr: pr, error: nil)
             } else {
                 completion(pr: nil, error: Error.withInfo("Wrong body \(body)"))
@@ -90,7 +90,7 @@ extension BitBucketServer: SourceServerType {
     }
     
     func getRepo(repo: String, completion: (repo: RepoType?, error: ErrorType?) -> ()) {
-        
+        let repo = service.repoName()
         let params = [
             "repo": repo
         ]
@@ -104,7 +104,7 @@ extension BitBucketServer: SourceServerType {
             }
             
             if let body = body as? NSDictionary {
-                let repository = BitBucketRepo(json: body)
+                let repository = BitBucketEnterpriseRepo(json: body)
                 completion(repo: repository, error: nil)
             } else {
                 completion(repo: nil, error: Error.withInfo("Wrong body \(body)"))
@@ -117,8 +117,7 @@ extension BitBucketServer: SourceServerType {
         let params = [
             "repo": repo,
             "sha": commit,
-            "status_key": "Buildasaur"
-        ]
+            ]
         
         self._sendRequestWithMethod(.GET, endpoint: .CommitStatuses, params: params, query: nil, body: nil) { (response, body, error) -> () in
             
@@ -133,12 +132,18 @@ extension BitBucketServer: SourceServerType {
                 return
             }
             
-            if let body = body as? NSDictionary {
-                let status = BitBucketStatus(json: body)
-                completion(status: status, error: nil)
-            } else {
-                completion(status: nil, error: Error.withInfo("Wrong body \(body)"))
+            if let body = body as? NSArray {
+                if body.count > 0 {
+                    if let body = body[0] as? NSDictionary {
+                        let status = BitBucketEnterpriseStatus(json: body)
+                        completion(status: status, error: nil)
+                        return
+                    }
+                }
+                return
             }
+            completion(status: nil, error: Error.withInfo("Wrong body \(body)"))
+            
         }
     }
     
@@ -149,7 +154,7 @@ extension BitBucketServer: SourceServerType {
             "sha": commit
         ]
         
-        let body = (status as! BitBucketStatus).dictionarify()
+        let body = (status as! BitBucketEnterpriseStatus).dictionarify()
         self._sendRequestWithMethod(.POST, endpoint: .CommitStatuses, params: params, query: nil, body: body) { (response, body, error) -> () in
             
             if error != nil {
@@ -158,7 +163,7 @@ extension BitBucketServer: SourceServerType {
             }
             
             if let body = body as? NSDictionary {
-                let status = BitBucketStatus(json: body)
+                let status = BitBucketEnterpriseStatus(json: body)
                 completion(status: status, error: nil)
             } else {
                 completion(status: nil, error: Error.withInfo("Wrong body \(body)"))
@@ -185,7 +190,7 @@ extension BitBucketServer: SourceServerType {
             }
             
             if let body = body as? NSDictionary {
-                let comment = BitBucketComment(json: body)
+                let comment = BitBucketEnterpriseComment(json: body)
                 completion(comment: comment, error: nil)
             } else {
                 completion(comment: nil, error: Error.withInfo("Wrong body \(body)"))
@@ -208,7 +213,7 @@ extension BitBucketServer: SourceServerType {
             }
             
             if let body = body as? [NSDictionary] {
-                let comments: [BitBucketComment] = BitBucketArray(body)
+                let comments: [BitBucketEnterpriseComment] = BitBucketEnterpriseArray(body)
                 completion(comments: comments.map { $0 as CommentType }, error: nil)
             } else {
                 completion(comments: nil, error: Error.withInfo("Wrong body \(body)"))
@@ -217,7 +222,7 @@ extension BitBucketServer: SourceServerType {
     }
 }
 
-extension BitBucketServer {
+extension BitBucketEnterpriseServer {
     
     private func _sendRequest(request: NSMutableURLRequest, isRetry: Bool = false, completion: HTTP.Completion) {
         
@@ -232,9 +237,9 @@ extension BitBucketServer {
             let statusCode = response!.statusCode
             switch statusCode {
             case 401: //unauthorized, use refresh token to get a new access token
-                      //only try to refresh token once
+                //only try to refresh token once
                 if !isRetry {
-                    self._handle401(request, completion: completion)
+                    // TODO: Look for alternatives here
                 }
                 return
             case 400, 402 ... 500:
@@ -251,63 +256,7 @@ extension BitBucketServer {
         }
     }
     
-    private func _handle401(request: NSMutableURLRequest, completion: HTTP.Completion) {
-        
-        //we need to use the refresh token to request a new access token
-        //then we need to notify that we updated the secret, so that it can
-        //be saved by buildasaur
-        //then we need to set the new access token to this waiting request and
-        //run it again. if that fails too, we fail for real.
-        
-        Log.verbose("Got 401, starting a BitBucket refresh token flow...")
-        
-        //get a new access token
-        self._refreshAccessToken(request) { error in
-            
-            if let error = error {
-                Log.verbose("Failed to get a new access token")
-                completion(response: nil, body: nil, error: error)
-                return
-            }
-
-            //we have a new access token, force set the new cred on the original
-            //request
-            self.endpoints.setAuthOnRequest(request)
-            
-            Log.verbose("Successfully refreshed a BitBucket access token")
-            
-            //retrying the original request
-            self._sendRequest(request, isRetry: true, completion: completion)
-        }
-    }
-    
-    private func _refreshAccessToken(request: NSMutableURLRequest, completion: (NSError?) -> ()) {
-        
-        let refreshRequest = self.endpoints.createRefreshTokenRequest()
-        self.http.sendRequest(refreshRequest) { (response, body, error) -> () in
-            
-            if let error = error {
-                completion(error)
-                return
-            }
-            
-            guard response?.statusCode == 200 else {
-                completion(Error.withInfo("Wrong status code returned, refreshing access token failed"))
-                return
-            }
-            
-            let payload = body as! NSDictionary
-            let accessToken = payload.stringForKey("access_token")
-            let refreshToken = payload.stringForKey("refresh_token")
-            let secret = [refreshToken, accessToken].joinWithSeparator(":")
-            
-            let newAuth = ProjectAuthenticator(service: BitBucketService(), username: "GIT", type: .OAuthToken, secret: secret)
-            self.endpoints.auth.value = newAuth
-            completion(nil)
-        }
-    }
-    
-    private func _sendRequestWithMethod(method: HTTP.Method, endpoint: BitBucketEndpoints.Endpoint, params: [String: String]?, query: [String: String]?, body: NSDictionary?, completion: HTTP.Completion) {
+    private func _sendRequestWithMethod(method: HTTP.Method, endpoint: BitBucketEnterpriseEndpoints.Endpoint, params: [String: String]?, query: [String: String]?, body: NSDictionary?, completion: HTTP.Completion) {
         
         var allParams = [
             "method": method.rawValue
@@ -351,7 +300,7 @@ extension BitBucketServer {
             
             //we do have more, let's fetch it
             let newBody = accumulatedResponseBody.arrayByAddingObjectsFromArray(arrayBody)
-
+            
             guard let nextLink = dictBody.optionalStringForKey("next") else {
                 
                 //is array, but we don't have any more data
@@ -365,5 +314,5 @@ extension BitBucketServer {
             return
         }
     }
-
+    
 }

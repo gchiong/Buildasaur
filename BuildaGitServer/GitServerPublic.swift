@@ -12,70 +12,178 @@ import Keys
 import ReactiveCocoa
 import Result
 
-public enum GitService: String {
+typealias BuildasaurKeys = BuildasaurxcodeprojKeys
+
+public enum GitServiceType: String {
     case GitHub = "github"
     case BitBucket = "bitbucket"
-//    case GitLab = "gitlab"
+    case BitBucketEnterprise = "bitbucketenterprise"
+    //    case GitLab = "gitlab"
+}
+
+public protocol GitService {
+    func serviceType() -> GitServiceType
+    func prettyName() -> String
+    func logoName() -> String
+    func hostname() -> String
+    func baseURL() -> NSURL
+    func authorizeUrl() -> String
+    func accessTokenUrl() -> String
+    func serviceKey() -> String
+    func serviceSecret() -> String
+}
+
+public extension GitService {
+}
+
+
+public struct GitHubService: GitService {
+    
+    public init() {
+    }
+    
+    public func serviceType() -> GitServiceType {
+        return .GitHub
+    }
     
     public func prettyName() -> String {
-        switch self {
-        case .GitHub: return "GitHub"
-        case .BitBucket: return "BitBucket"
-        }
+        return "GitHub"
     }
     
     public func logoName() -> String {
-        switch self {
-        case .GitHub: return "github"
-        case .BitBucket: return "bitbucket"
-        }
+        return "github"
     }
     
     public func hostname() -> String {
-        switch self {
-        case .GitHub: return "github.com"
-        case .BitBucket: return "bitbucket.org"
-        }
+        return baseURL().host!
+    }
+    
+    public func baseURL() -> NSURL {
+        return NSURL(string:"http://github.com")!
     }
     
     public func authorizeUrl() -> String {
-        switch self {
-        case .GitHub: return "https://github.com/login/oauth/authorize"
-        case .BitBucket: return "https://bitbucket.org/site/oauth2/authorize"
-        }
+        return "https://github.com/login/oauth/authorize"
     }
     
     public func accessTokenUrl() -> String {
-        switch self {
-        case .GitHub: return "https://github.com/login/oauth/access_token"
-        case .BitBucket: return "https://bitbucket.org/site/oauth2/access_token"
-        }
+        return "https://github.com/login/oauth/access_token"
     }
     
     public func serviceKey() -> String {
-        switch self {
-        case .GitHub: return BuildasaurKeys().gitHubAPIClientId()
-        case .BitBucket: return BuildasaurKeys().bitBucketAPIClientId()
-        }
+        return BuildasaurKeys().gitHubAPIClientId()
     }
     
     public func serviceSecret() -> String {
-        switch self {
-        case .GitHub: return BuildasaurKeys().gitHubAPIClientSecret()
-        case .BitBucket: return BuildasaurKeys().bitBucketAPIClientSecret()
-        }
+        return BuildasaurKeys().gitHubAPIClientSecret()
     }
 }
 
-public class GitServer : HTTPServer {
+public struct BitBucketService: GitService {
     
-    let service: GitService
+    public init() {
+    }
+    
+    public func serviceType() -> GitServiceType {
+        return .BitBucket
+    }
+    
+    public func prettyName() -> String {
+        return "BitBucket"
+    }
+    
+    public func logoName() -> String {
+        return "bitbucket"
+    }
+    
+    public func hostname() -> String {
+        return baseURL().host!
+    }
+    
+    public func baseURL() -> NSURL {
+        return NSURL(string:"http://bitbucket.org")!
+    }
+    
+    public func authorizeUrl() -> String {
+        return "https://bitbucket.org/site/oauth2/authorize"
+    }
+    
+    public func accessTokenUrl() -> String {
+        return "https://bitbucket.org/site/oauth2/access_token"
+    }
+    
+    public func serviceKey() -> String {
+        return BuildasaurKeys().bitBucketAPIClientId()
+    }
+    
+    public func serviceSecret() -> String {
+        return BuildasaurKeys().bitBucketAPIClientSecret()
+    }
+}
+
+public struct BitBucketEnterpriseService: GitService {
+    public let _baseURL: NSURL
+    public init() {
+        self.init(baseURL:"")
+    }
+    
+    public init(baseURL: String) {
+        self._baseURL = NSURL(string:baseURL)!
+    }
+    
+    public func serviceType() -> GitServiceType {
+        return .BitBucketEnterprise
+    }
+    
+    public func prettyName() -> String {
+        return "BitBucket Enterprise"
+    }
+    
+    public func logoName() -> String {
+        return "bitbucket"
+    }
+    
+    public func hostname() -> String {
+        return _baseURL.host!
+    }
+    
+    public func baseURL() -> NSURL {
+        return _baseURL
+    }
+    
+    public func repoName() -> String {
+        let pathComponents = _baseURL.pathComponents!
+        let serviceRepoName = "\(pathComponents[1])/\(pathComponents[2].componentsSeparatedByString(".")[0])"
+        return serviceRepoName
+    }
+    
+    public func authorizeUrl() -> String {
+        return ""
+    }
+    
+    public func accessTokenUrl() -> String {
+        return ""
+    }
+    
+    public func serviceKey() -> String {
+        return BuildasaurKeys().bitBucketEnterpriseUsername()
+    }
+    
+    public func serviceSecret() -> String {
+        return BuildasaurKeys().bitBucketEnterprisePassword()
+    }
+
+}
+
+public class GitServer<T: GitService> : HTTPServer {
+    
+    let service: T
     
     public func authChangedSignal() -> Signal<ProjectAuthenticator?, NoError> {
         return Signal.never
     }
     
-    init(service: GitService, http: HTTP? = nil) {
+    init(service: T, http: HTTP? = nil) {
         self.service = service
         super.init(http: http)
     }

@@ -58,7 +58,7 @@ public class Project {
     public class func attemptToParseFromUrl(url: NSURL) throws -> WorkspaceMetadata {
         return try Project.loadWorkspaceMetadata(url)
     }
-
+    
     private func refreshMetadata() throws {
         let meta = try Project.attemptToParseFromUrl(self.url)
         self.workspaceMetadata = meta
@@ -86,36 +86,43 @@ public class Project {
         let stringUrl = originalStringUrl.lowercaseString
         
         /*
-        both https and ssh repos on github have a form of:
-        {https://|git@}SERVICE_URL{:|/}organization/repo.git
-        here I need the organization/repo bit, which I'll do by finding "SERVICE_URL" and shifting right by one
-        and scan up until ".git"
-        */
+         both https and ssh repos on github have a form of:
+         {https://|git@}SERVICE_URL{:|/}organization/repo.git
+         here I need the organization/repo bit, which I'll do by finding "SERVICE_URL" and shifting right by one
+         and scan up until ".git"
+         */
         
-        let serviceUrl = service.hostname().lowercaseString
-        let dotGitRange = stringUrl.rangeOfString(".git", options: NSStringCompareOptions.BackwardsSearch, range: nil, locale: nil) ?? stringUrl.endIndex..<stringUrl.endIndex
-        if let githubRange = stringUrl.rangeOfString(serviceUrl, options: NSStringCompareOptions(), range: nil, locale: nil){
-                
+        switch service.serviceType() {
+        case .GitHub, .BitBucket:
+            let serviceUrl = service.hostname().lowercaseString
+            let dotGitRange = stringUrl.rangeOfString(".git", options: NSStringCompareOptions.BackwardsSearch, range: nil, locale: nil) ?? stringUrl.endIndex..<stringUrl.endIndex
+            if let githubRange = stringUrl.rangeOfString(serviceUrl, options: NSStringCompareOptions(), range: nil, locale: nil)
+            {
                 let start = githubRange.endIndex.advancedBy(1)
                 let end = dotGitRange.startIndex
-            
+                
                 let repoName = originalStringUrl[start ..< end]
                 return repoName
-        }
-        return nil
+            }
+        case .BitBucketEnterprise:
+            let pathComponents = service.baseURL().pathComponents!
+            let serviceRepoName = "\(pathComponents[1])/\(pathComponents[2].componentsSeparatedByString(".")[0])"
+            return serviceRepoName
     }
+    return nil
+}
 
-    private func getContentsOfKeyAtPath(path: String) -> String? {
-        
-        let url = NSURL(fileURLWithPath: path)
-        do {
-            let key = try NSString(contentsOfURL: url, encoding: NSASCIIStringEncoding)
-            return key as String
-        } catch {
-            Log.error("Couldn't load key at url \(url) with error \(error)")
-        }
-        return nil
+private func getContentsOfKeyAtPath(path: String) -> String? {
+    
+    let url = NSURL(fileURLWithPath: path)
+    do {
+        let key = try NSString(contentsOfURL: url, encoding: NSASCIIStringEncoding)
+        return key as String
+    } catch {
+        Log.error("Couldn't load key at url \(url) with error \(error)")
     }
+    return nil
+}
 
 }
 

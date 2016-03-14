@@ -43,7 +43,7 @@ public struct WorkspaceMetadata {
         
         //we have to prefix SSH urls with "git@" (for a reason I don't remember anymore, probs because the user "git" is treated as a standard part of the url itself)
         var correctedProjectUrlString = projectURLString
-        if case .SSH = checkoutType where !projectURLString.hasPrefix("git@") {
+        if case .SSH = checkoutType where !projectURLString.hasPrefix("git@") && !projectURLString.hasPrefix("ssh://") {
             correctedProjectUrlString = "git@" + projectURLString
         }
         
@@ -79,9 +79,9 @@ extension WorkspaceMetadata {
         let scheme = NSURL(string: urlString)!.scheme
         switch scheme {
         case "github.com":
-            return (CheckoutType.SSH, .GitHub)
+            return (CheckoutType.SSH, GitHubService())
         case "bitbucket.org":
-            return (CheckoutType.SSH, .BitBucket)
+            return (CheckoutType.SSH, BitBucketService())
         case "https":
             
             if urlString.hasSuffix(".git") {
@@ -93,7 +93,9 @@ extension WorkspaceMetadata {
             Log.error("HTTPS or SVN not yet supported, please create an issue on GitHub if you want it added (czechboy0/Buildasaur)")
             return nil
         default:
-            return nil
+            // TODO: Show another screen so that users can choose
+            return (CheckoutType.SSH, BitBucketEnterpriseService(baseURL:urlString))
+//            return nil
         }
     }
 }
