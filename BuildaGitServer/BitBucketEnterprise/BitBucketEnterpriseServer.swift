@@ -142,6 +142,7 @@ extension BitBucketEnterpriseServer: SourceServerType {
                 }
                 // No Status
                 completion(status: nil, error: nil)
+                return
             }
             completion(status: nil, error: Error.withInfo("Wrong body \(body)"))
             
