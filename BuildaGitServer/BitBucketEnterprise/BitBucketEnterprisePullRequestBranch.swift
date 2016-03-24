@@ -17,7 +17,7 @@ class BitBucketEnterprisePullRequestBranch : BitBucketEnterpriseEntity {
     required init(json: NSDictionary) {
         let name = json.stringForKey("id").stringByReplacingOccurrencesOfString("refs/heads/", withString: "")
         self.branch = name
-        self.commit = json.stringForKey("latestChangeset")
+        self.commit = json.stringForKey("latestCommit")
         self.repo = BitBucketEnterpriseRepo(json: json.dictionaryForKey("repository"))
         
         super.init(json: json)
