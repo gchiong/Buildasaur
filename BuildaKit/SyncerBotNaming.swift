@@ -25,14 +25,22 @@ class BotNaming {
     }
     
     class func nameForBotWithPR(pr: PullRequestType, repoName: String) -> String {
-        return "\(self.prefixForBuildaBotInRepoWithName(repoName)) PR #\(pr.number)"
+//        return "\(self.prefixForBuildaBotInRepoWithName(repoName)) PR #\(pr.number)"
+        let name = "\(self.prefixForBuildaBotInRepoWithName(repoName)) \(pr.headName)"
+        return name
     }
     
     class func prefixForBuildaBotInRepoWithName(repoName: String) -> String {
-        return "\(self.prefixForBuildaBot()) [\(repoName)]"
+        let repoNameComponents = repoName.componentsSeparatedByString("/")
+        if repoNameComponents.count > 0 {
+            // For BitBucket Server, repoName will be "<project>/<repo>"
+            return "\(self.prefixForBuildaBot()) [\(repoNameComponents[1])]"
+        } else {
+            return "\(self.prefixForBuildaBot()) [\(repoName)]"
+        }
     }
     
     class func prefixForBuildaBot() -> String {
-        return "BuildaBot"
+        return "β"
     }
 }
