@@ -52,6 +52,8 @@ class ProjectViewController: ConfigEditViewController {
     @IBOutlet weak var useTokenButton: NSButton!
     @IBOutlet weak var logoutButton: NSButton!
     
+    private var serviceType: GitServiceType!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -121,7 +123,7 @@ class ProjectViewController: ConfigEditViewController {
                     if token.isEmpty {
                         self?.authenticator.value = nil
                     } else {
-                        self?.authenticator.value = ProjectAuthenticator(service: .GitHub, username: "GIT", type: .PersonalToken, secret: token)
+                        self?.authenticator.value = ProjectAuthenticator(service: GitHubService(), username: "GIT", type: .PersonalToken, secret: token)
                     }
                 }
         }
@@ -143,7 +145,7 @@ class ProjectViewController: ConfigEditViewController {
         let privateKeyValid = privateKey.map { $0 != nil }
         let publicKeyValid = publicKey.map { $0 != nil }
         let githubTokenValid = self.authenticator.producer.map { $0 != nil }
-        
+
         let allInputs = combineLatest(privateKeyValid, publicKeyValid, githubTokenValid)
         let valid = allInputs.map { $0.0 && $0.1 && $0.2 }
         self.valid = valid
@@ -165,8 +167,9 @@ class ProjectViewController: ConfigEditViewController {
         self.serviceLogo.image = NSImage(named: service.logoName())
         
         let alreadyHasAuth = auth != nil
-
-        switch service {
+        
+        self.serviceType = service.serviceType()
+        switch service.serviceType() {
         case .GitHub:
             if let auth = auth where auth.type == .PersonalToken && !auth.secret.isEmpty {
                 self.tokenTextField.stringValue = auth.secret
@@ -174,14 +177,20 @@ class ProjectViewController: ConfigEditViewController {
                 self.tokenTextField.stringValue = ""
             }
             self.useTokenButton.hidden = alreadyHasAuth
+            self.loginButton.hidden = alreadyHasAuth
+            self.logoutButton.hidden = !alreadyHasAuth
         case .BitBucket:
+            self.useTokenButton.hidden = true
+            self.loginButton.hidden = alreadyHasAuth
+            self.logoutButton.hidden = !alreadyHasAuth
+        case .BitBucketEnterprise:
+            self.loginButton.hidden = true // We don't support oAuth and username/password will be stored in cocoapods-keys
+            self.logoutButton.hidden = true
             self.useTokenButton.hidden = true
         }
         
-        self.loginButton.hidden = alreadyHasAuth
-        self.logoutButton.hidden = !alreadyHasAuth
         
-        let showTokenField = userWantsTokenAuth && service == .GitHub && (auth?.type == .PersonalToken || auth == nil)
+        let showTokenField = userWantsTokenAuth && service.serviceType() == .GitHub && (auth?.type == .PersonalToken || auth == nil)
         self.tokenStackView.hidden = !showTokenField
     }
     
@@ -241,6 +250,13 @@ class ProjectViewController: ConfigEditViewController {
     func pullConfigFromUI() -> ProjectConfig? {
         
         let sshPassphrase = self.sshPassphraseTextField.stringValue.nonEmpty()
+        
+        let service = self.project.workspaceMetadata!.service
+        
+        if service.serviceType() == .BitBucketEnterprise {
+            self.authenticator.value = self.serviceAuthenticator.getBasicAccess(service)
+        }
+        
         guard
             let privateKeyPath = self.privateKeyUrl.value?.path,
             let publicKeyPath = self.publicKeyUrl.value?.path,
