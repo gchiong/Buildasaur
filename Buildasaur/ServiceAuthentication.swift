@@ -21,6 +21,8 @@ class ServiceAuthenticator {
         case CallbackUrl
         case Scope
         case State
+        case Username
+        case Password
     }
     
     typealias SecretFromResponseParams = ([String: String]) -> String
@@ -58,11 +60,6 @@ class ServiceAuthenticator {
         )
     }
     
-    func getBasicAccess(service: GitService) -> ProjectAuthenticator {
-        let auth = ProjectAuthenticator(service: service, username: service.serviceKey(), type: .Basic, secret: service.serviceSecret())
-        return auth
-    }
-    
     func getAccessTokenFromRefresh(service: GitService, refreshToken: String, completion: (auth: ProjectAuthenticator?, error: ErrorType?)) {
         //TODO: implement refresh token flow - to get and save a new access token
     }
@@ -73,10 +70,8 @@ class ServiceAuthenticator {
             return self.getGitHubParameters()
         case .BitBucket:
             return self.getBitBucketParameters()
-        case .BitBucketEnterprise:
-            return self.getBitBucketEnterpriseParameters()
-//        default:
-//            fatalError()
+        default:
+            fatalError()
         }
     }
     
@@ -121,29 +116,5 @@ class ServiceAuthenticator {
         }
         return (params, secret)
     }
-    
-    private func getBitBucketEnterpriseParameters() -> ([ParamKey: String], SecretFromResponseParams) {
-        let service = BitBucketEnterpriseService()
-        let params: [ParamKey: String] = [
-            .ConsumerId: service.serviceKey(),
-            .ConsumerSecret: service.serviceSecret(),
-            .AuthorizeUrl: service.authorizeUrl(),
-            .AccessTokenUrl: service.accessTokenUrl(),
-            .ResponseType: "code",
-            .CallbackUrl: "buildasaur://oauth-callback/bitbucket",
-            .Scope: "pullrequest",
-            .State: generateStateWithLength(20) as String
-        ]
-        let secret: SecretFromResponseParams = {
-            //we need both the access and refresh tokens, because
-            //the refresh token only lives for one hour.
-            //but we'll only store the
-            let refreshToken = $0["refresh_token"]!
-            let accessToken = $0["access_token"]!
-            return "\(refreshToken):\(accessToken)"
-        }
-        return (params, secret)
-    }
-
 
 }

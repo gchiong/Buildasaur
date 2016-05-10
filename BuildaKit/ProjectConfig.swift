@@ -17,8 +17,11 @@ public struct ProjectConfig {
     public var privateSSHKeyPath: String
     public var publicSSHKeyPath: String
     
-    public var sshPassphrase: String? //loaded from the keychain
-    public var serverAuthentication: ProjectAuthenticator? //loaded from the keychain
+    // Loaded from keychain
+    public var sshPassphrase: String?
+    public var serverAuthentication: ProjectAuthenticator?
+    public var username: String? // Used for basic authentication
+    public var password: String? // Used for basic authentication
     
     public let serviceType: GitServiceType
     
@@ -30,6 +33,8 @@ public struct ProjectConfig {
         self.privateSSHKeyPath = ""
         self.publicSSHKeyPath = ""
         self.sshPassphrase = nil
+        self.username = nil
+        self.password = nil
         self.serviceType = .GitHub
     }
     

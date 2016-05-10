@@ -53,6 +53,7 @@ public struct BitBucketEnterpriseService: GitService {
     }
     
     public func serviceKey() -> String {
+        
         return BuildasaurKeys().bitBucketEnterpriseUsername()
     }
     

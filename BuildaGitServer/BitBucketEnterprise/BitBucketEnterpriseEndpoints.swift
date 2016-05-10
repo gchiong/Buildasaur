@@ -78,7 +78,7 @@ class BitBucketEnterpriseEndpoints {
             
         switch auth.type {
         case .Basic:
-            let credential = "\(auth.service.serviceKey()):\(auth.service.serviceSecret())".base64String()
+            let credential = "\(auth.username):\(auth.secret)".base64String()
             request.setValue("Basic \(credential)", forHTTPHeaderField:"Authorization")
         default:
             fatalError("This kind of authentication is not supported for BitBucket Enterprise")

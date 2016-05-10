@@ -238,15 +238,9 @@ extension BitBucketEnterpriseServer {
             //error out on special HTTP status codes
             let statusCode = response!.statusCode
             switch statusCode {
-            case 401: //unauthorized, use refresh token to get a new access token
-                //only try to refresh token once
-                if !isRetry {
-                    // TODO: Look for alternatives here
-                }
-                return
-            case 400, 402 ... 500:
+            case 400, 401, 402 ... 500:
                 
-                let message = ((body as? NSDictionary)?["error"] as? NSDictionary)?["message"] as? String ?? (body as? String ?? "Unknown error")
+                let message = (((body as? NSDictionary)?["errors"] as? NSArray)?[0] as? NSDictionary)?["message"] as? String ?? (body as? String ?? "Unknown error")
                 let resultString = "\(statusCode): \(message)"
                 completion(response: response, body: body, error: Error.withInfo(resultString, internalError: error))
                 return
